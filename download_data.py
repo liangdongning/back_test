@@ -62,6 +62,29 @@ def get_all_stock_data():
             pool.submit(get_stock_data, code)
 
 
+def get_bond_data(code):
+    bond_data = ConvertibleBondData()
+    bond_data.request_data(code)
+
+
+def get_all_bond_data():
+    bond_list = ConvertibleBondList()
+    info_df = bond_list.get_df()
+    # 多进程版本
+    # pool = Pool(THREAD_POOL_NUM)
+    # for row in info_df.iterrows():
+    #     code = row[1]["CODE"]
+    #     pool.apply_async(func=get_stock_data, args=(code,))
+    # pool.close()
+    # pool.join()
+
+    # 多线程版本
+    with ThreadPoolExecutor(max_workers=THREAD_POOL_NUM) as pool:
+        for row in info_df.iterrows():
+            code = row[1]["bond_id"]
+            pool.submit(get_bond_data, code)
+
+
 def get_stock_list():
     stock_info = StockList()
     stock_info.request_data()
@@ -76,5 +99,8 @@ if __name__ == "__main__":
     init_console_log()
     # get_stock_list()
     # get_index_list()
+
+    # 下载全部数据
     get_all_stock_data()
-    # get_all_index_data()
+    get_all_index_data()
+    # get_all_bond_data()

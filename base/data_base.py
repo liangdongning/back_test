@@ -120,6 +120,7 @@ class IndexData(DataBase):
 
 class ConvertibleBondData(DataBase):
     _url = ""
+    data_df = None
     _headers = {
         "Accept": "application/json, text/javascript, */*; q=0.01",
         "Accept-Encoding": "gzip, deflate, br",
@@ -158,18 +159,18 @@ class ConvertibleBondData(DataBase):
         data_json = json.loads(data)
         logger.info("正在处理{}数据...".format(code))
 
-        data_df = pd.json_normalize(data_json, record_path=["rows"])
-        data_df.columns = [
-            i.split(".")[1] if len(i.split(".")) > 1 else i for i in data_df.columns
+        self._data_df = pd.json_normalize(data_json, record_path=["rows"])
+        self._data_df.columns = [
+            i.split(".")[1] if len(i.split(".")) > 1 else i for i in self._data_df.columns
         ]
-        del data_df["id"]
-        logger.debug(data_df)
+        del self._data_df["id"]
+        logger.debug(self._data_df)
 
-        if data_df.empty:
+        if self._data_df.empty:
             logger.warning("{}空数据!".format(code))
         else:
-            data_df.to_csv(
-                self._file_path + str(code[1:]) + ".csv", encoding="gbk", index=False
+            self._data_df.to_csv(
+                self._file_path + str(code) + ".csv", encoding="gbk", index=False
             )
             logger.info("{}数据处理完成！！".format(code))
 
@@ -178,9 +179,9 @@ if __name__ == "__main__":
     init_console_log()
     # ----------------------------------------
     # test StockData
-    stock_data = StockData()
-    stock_data.request_data(code="1001209", end=TODAY)
+    # stock_data = StockData()
+    # stock_data.request_data(code="1001209", end=TODAY)
     # ----------------------------------------
     # testConvertibleBondData
-    # convertible_bond_data = ConvertibleBondData()
-    # convertible_bond_data.request_data(code="110065", end=TODAY)
+    convertible_bond_data = ConvertibleBondData()
+    convertible_bond_data.request_data(code="110065", end=TODAY)
