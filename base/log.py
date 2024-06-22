@@ -5,8 +5,7 @@ import time
 from multiprocessing import Process
 from colorama import Fore, Style, init
 from concurrent_log_handler import ConcurrentRotatingFileHandler
-from qmttrader.base.config import PathConfig
-from qmttrader.base.singleton import singleton
+from base.singleton import singleton
 
 # 初始化 Colorama
 init(autoreset=True)
@@ -112,18 +111,11 @@ class ProcessSafeColoredLogger:
 
 
 @singleton
-class TraderLogger(ProcessSafeColoredLogger):
-    def __init__(self):
-        super().__init__("TraderLogger", PathConfig.trader_log_file, logging.INFO)
-
-
-@singleton
 class PerformanceLogger(ProcessSafeColoredLogger):
     def __init__(self):
         super().__init__("PerformanceLogger", "", logging.DEBUG)
 
 
-trader_log = TraderLogger()
 performance_log = PerformanceLogger()
 
 
@@ -133,29 +125,25 @@ def task(process_id):
     # 初始化日志记录器
     # trader_log = TraderLogger()
     # performance_log = PerformanceLogger()
-    trader_logger = trader_log.get_logger()
     performance_logger = performance_log.get_logger()
 
     for i in range(2):
-        trader_logger.info(f"Process  {process_id} - Trader Log: iteration {i}")
+        performance_logger.info(f"Process  {process_id} - Trader Log: iteration {i}")
         performance_logger.debug(
             f"Process {process_id} - Performance Log: iteration {i}"
         )
-        trader_logger.warning(f"Process  {process_id} - Trader Log: iteration {i}")
-        trader_logger.error(f"Process  {process_id} - Trader Log: iteration {i}")
+        performance_logger.warning(f"Process  {process_id} - Trader Log: iteration {i}")
+        performance_logger.error(f"Process  {process_id} - Trader Log: iteration {i}")
         time.sleep(1)
 
 
 # 主程序入口
 if __name__ == "__main__":
-    user_input = input(
-        "请输入新的日志级别（DEBUG, INFO, WARNING, ERROR, CRITICAL）或输入 'exit' 退出："
-    )
+    user_input = input("请输入新的日志级别（DEBUG, INFO, WARNING, ERROR, CRITICAL）或输入 'exit' 退出：")
     if user_input.lower() == "exit":
         exit()
     try:
         level = getattr(logging, user_input.upper())
-        trader_log.set_logging_level(level)
         performance_log.set_logging_level(level)
     except AttributeError:
         print(
@@ -176,4 +164,3 @@ if __name__ == "__main__":
     performance_log.get_logger().info("All initial processes have finished.")
     performance_log.get_logger().warning("All initial processes have finished.")
     performance_log.get_logger().error("All initial processes have finished.")
-
