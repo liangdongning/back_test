@@ -165,7 +165,6 @@ class FastCerebro(bt.Cerebro):
             if self.p.optdatas and self._dopreload and self._dorunonce:
                 self.dopreloaddata()
 
-
             pool = bt.multiprocessing.Pool(self.p.maxcpus or None)
             for r in pool.imap(self, iterstrats):
                 self.runstrats.append(r)

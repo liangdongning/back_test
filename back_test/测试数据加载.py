@@ -11,9 +11,13 @@ plt.rcParams["font.sans-serif"] = ["SimHei"]  # 设置画图时的中文显示
 plt.rcParams["axes.unicode_minus"] = False  # 设置画图时的负号显示
 
 
-class CustomData(bt.feeds.PandasData):
+# class CustomData(bt.feeds.PandasData):
+#     lines = ("limit_up", "limit_down")
+#     params = (("limit_up", -1), ("limit_down", -1))
+
+class CustomData(bt.feeds.PandasDirectData):
     lines = ("limit_up", "limit_down")
-    params = (("limit_up", -1), ("limit_down", -1))
+    params = (("limit_up", 7), ("limit_down", 8))
 
 
 class TestStrategy(bt.Strategy):
@@ -53,6 +57,7 @@ class TestStrategy(bt.Strategy):
 if __name__ == "__main__":
     # 设置日志级别
     # performance_log.set_logging_level("INFO")
+    performance_log.get_logger().debug("开始回测")
     # 创建回测实例
     cerebro = FastCerebro()
 
@@ -83,4 +88,4 @@ if __name__ == "__main__":
     # 加载数据
     cerebro.adddata(data_1, name="sh600466")
     cerebro.adddata(data_2, name="sz002871")
-    result = cerebro.run(maxcpus=1, preload=False, stdstats=False, cache_data=True, replace_cache_data=False)
+    result = cerebro.run(maxcpus=1, stdstats=False, preload=False, cache_data=True, replace_cache_data=False)

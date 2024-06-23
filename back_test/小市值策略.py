@@ -71,7 +71,23 @@ class SmallCapStockDataProcessor(SingleStockDataProcessor):
         ]
 
 
-class SmallCapData(bt.feeds.PandasData):
+# class SmallCapData(bt.feeds.PandasData):
+#     lines = (
+#         "limit_up",
+#         "market_cap",
+#         "is_trade",
+#         "is_st",
+#         "is_delisting",
+#     )
+#     params = (
+#         ("limit_up", -1),
+#         ("market_cap", -1),
+#         ("is_trade", -1),
+#         ("is_st", -1),
+#         ("is_delisting", -1),
+#     )
+
+class SmallCapData(bt.feeds.PandasDirectData):
     lines = (
         "limit_up",
         "market_cap",
@@ -80,11 +96,11 @@ class SmallCapData(bt.feeds.PandasData):
         "is_delisting",
     )
     params = (
-        ("limit_up", -1),
-        ("market_cap", -1),
-        ("is_trade", -1),
-        ("is_st", -1),
-        ("is_delisting", -1),
+        ("limit_up", 7),
+        ("market_cap", 8),
+        ("is_trade", 9),
+        ("is_st", 10),
+        ("is_delisting", 11),
     )
 
 
@@ -244,8 +260,8 @@ if __name__ == "__main__":
     # 创建Cerebro实例
     cerebro = FastCerebro()
     # 回测时间段
-    start_date = datetime.datetime(2008, 1, 10)  # 回测开始时间
-    end_date = datetime.datetime(2023, 12, 31)  # 回测结束时间
+    start_date = datetime.datetime(2008, 1, 1)  # 回测开始时间
+    end_date = datetime.datetime(2022, 12, 31)  # 回测结束时间
     # 读取指数数据
     index_data = SingleStockDataProcessor.import_index_data(
         "F:/stock_data/index_data/sh000001.csv",
@@ -256,6 +272,7 @@ if __name__ == "__main__":
     ## 1.获取文件夹下所有csv文件路径 由于运行速度比较慢建议同时建立一个包含少量数据的文件夹用于调试，调试成功后再用全文件夹跑结果
     data_path = PathConfig.stock_daily_folder
     csv_files = [f for f in os.listdir(data_path) if f.endswith(".csv")]
+    csv_files = [f for f in csv_files if "bj" not in f]  # 过滤掉北交所股票
     #
     # ## 2.加载数据到Cerebro
     # ### 2.1单进程处理
@@ -301,10 +318,10 @@ if __name__ == "__main__":
     results = cerebro.run(
         maxcpus=None,
         stdstats=False,
-        preload=True,
-        cache_data=True,
-        replace_cache_data=False,
-        cache_file_path=cache_file,
+        preload=False,
+        # cache_data=True,
+        # replace_cache_data=False,
+        # cache_file_path=cache_file,
     )  # 用单核 CPU 做优化, 禁用观察者用以提高执行速度,不做预加载
     performance_log.get_logger().info("最终资金: %.2f" % cerebro.broker.getvalue())
     stats = results[0]

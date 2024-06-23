@@ -210,7 +210,7 @@ def main(code="sz000002"):
     )
 
     print(par_df.head())
-    output_file = PathConfig.data_folder + "择时策略优化.csv"
+    output_file = PathConfig.data_optimized_folder + "择时策略优化.csv"
     par_df.to_csv(output_file)
 
 
