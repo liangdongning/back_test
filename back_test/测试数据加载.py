@@ -39,16 +39,16 @@ class TestStrategy(bt.Strategy):
     #     self.next()
 
     def next(self):
-        performance_log.get_logger().debug(
+        performance_log.debug(
             f"日期: {self.datas[0].datetime.date(0).isoformat()}"
         )
-        performance_log.get_logger().debug(
+        performance_log.debug(
             f"收盘价, { self.datas[0].close[0]}"
         )  # 记录收盘价
-        performance_log.get_logger().debug(
+        performance_log.debug(
             f"成交量, {self.datas[0].volume[0]}"
         )  # 记录收盘价
-        performance_log.get_logger().debug(
+        performance_log.debug(
             f"涨停, {self.datas[0].limit_up[0]}"
         )  # 记录收盘价
         # num2date() 作用是将数字形式的时间转为 date 形式
@@ -57,7 +57,7 @@ class TestStrategy(bt.Strategy):
 if __name__ == "__main__":
     # 设置日志级别
     # performance_log.set_logging_level("INFO")
-    performance_log.get_logger().debug("开始回测")
+    performance_log.debug("开始回测")
     # 创建回测实例
     cerebro = FastCerebro()
 

@@ -112,14 +112,14 @@ class SmallCapStrategy(BaseStockStrategy):
         self.n_periods = self.p.n_periods
         self.percentage = 0.99 / self.p.num_stocks
 
-        performance_log.get_logger().debug(
+        performance_log.debug(
             "--------- 打印 self 策略本身的 lines ----------"
         )
-        performance_log.get_logger().debug(self.lines.getlinealiases())
-        performance_log.get_logger().debug(
+        performance_log.debug(self.lines.getlinealiases())
+        performance_log.debug(
             "--------- 打印 self.datas 第一个数据表格的 lines ----------"
         )
-        performance_log.get_logger().debug(self.datas[0].lines.getlinealiases())
+        performance_log.debug(self.datas[0].lines.getlinealiases())
 
     def execute_trade_logic(self):
         super().execute_trade_logic()
@@ -144,23 +144,23 @@ class SmallCapStrategy(BaseStockStrategy):
         ]
         # 删除不在继续持有的股票，进而释放资金用于买入新的股票
         datas_position = [d for d, pos in self.getpositions().items() if pos]
-        performance_log.get_logger().debug(f"现有持仓个数：{len(datas_position)}")
+        performance_log.debug(f"现有持仓个数：{len(datas_position)}")
         for data in (data for data in datas_position if data not in datas_new_position):
             # 对于每个持仓，发出清仓指令，即将目标持仓百分比设置为0
             order = self.order_target_percent(data, target=0.0)
-            performance_log.get_logger().debug("清仓 {} ".format(data._name))
+            performance_log.debug("清仓 {} ".format(data._name))
 
         # 对下一期继续持有的股票，进行仓位调整
         for data in (data for data in datas_position if data in datas_new_position):
             self.order_target_percent(data, target=self.percentage)
-            performance_log.get_logger().debug(
+            performance_log.debug(
                 "调仓 {} 仓位 {} ".format(data._name, self.percentage)
             )
             datas_new_position.remove(data)
 
         # 按照等权重下单新入选股票
         for data in datas_new_position:
-            performance_log.get_logger().debug(
+            performance_log.debug(
                 "买入 {}仓位 {}  ".format(data._name, self.percentage)
             )
             self.order_target_percent(data, target=self.percentage)
@@ -171,14 +171,14 @@ class SmallCapStrategy(BaseStockStrategy):
         """
 
         if order.status in [order.Submitted, order.Accepted]:
-            # performance_log.get_logger().debug(
+            # performance_log.debug(
             #     "Order Submitted/Accepted: id:%s  " % (order.ref)
             # )
             return
         # 已经处理的订单
         if order.status in [order.Completed, order.Canceled, order.Margin]:
             if order.isbuy():
-                performance_log.get_logger().debug(
+                performance_log.debug(
                     "BUY EXECUTED, ref:%.0f，Price: %.2f, Cost: %.2f, Comm %.2f, Size: %.2f, Stock: %s"
                     % (
                         order.ref,  # 订单编号
@@ -190,7 +190,7 @@ class SmallCapStrategy(BaseStockStrategy):
                     )
                 )  # 股票名称
             else:  # Sell
-                performance_log.get_logger().debug(
+                performance_log.debug(
                     "SELL EXECUTED, ref:%.0f, Price: %.2f, Cost: %.2f, Comm %.2f, Size: %.2f, Stock: %s"
                     % (
                         order.ref,
@@ -204,7 +204,7 @@ class SmallCapStrategy(BaseStockStrategy):
 
             # 如果指令取消/交易失败, 报告结果
         elif order.status in [order.Canceled, order.Margin, order.Rejected]:
-            performance_log.get_logger().debug(
+            performance_log.debug(
                 "Order Canceled/Margin/Rejected: %s" % order
             )
 
@@ -236,10 +236,10 @@ def process_stock(args):
 
     # 如果处理后的数据为空，则记录警告并返回None
     if stock_df.empty:
-        performance_log.get_logger().warning(
+        performance_log.warning(
             f"No data found for {stock_code}, skipping."
         )
-        return None
+        return None, None
 
     # 创建并返回股票数据对象
     data = SmallCapData(dataname=stock_df, fromdate=start_date, todate=end_date)
@@ -275,31 +275,26 @@ if __name__ == "__main__":
     csv_files = [f for f in csv_files if "bj" not in f]  # 过滤掉北交所股票
     #
     # ## 2.加载数据到Cerebro
-    # ### 2.1单进程处理
-    # args_list = [(csv_file, data_path, start_date, end_date, index_data) for csv_file in csv_files]
-    # # 处理所有股票数据
-    # stock_data_dict = {}
-    # for args in args_list:
-    #     stock_code, data = process_stock(args)
-    #     if data is not None:
-    #         stock_data_dict[stock_code] = data
-    # 使用multiprocessing.Pool处理每个CSV文件
-    ### 2.12多进程处理
-    with Pool(max(cpu_count() - 1, 1)) as pool:
-        results = pool.map(
-            process_stock,
-            [
-                (csv_file, data_path, start_date, end_date, index_data)
-                for csv_file in csv_files
-            ],
-        )
-    stock_data_dict = {result[0]: result[1] for result in results if result is not None}
-    performance_log.get_logger().info(f"Loaded {len(stock_data_dict)} stocks.")
+    args_list = [(csv_file, data_path, start_date, end_date, index_data) for csv_file in csv_files]
+    # 是否启用多进程，默认为True
+    multiprocessing_enabled = True
+    if multiprocessing_enabled:
+        # 使用多进程处理
+        with Pool(max(cpu_count() - 1, 1)) as pool:
+            results = pool.map(process_stock, args_list)
+    else:
+        # 单进程处理
+        results = [process_stock(args) for args in args_list]
+
+    # 过滤并构造字典
+    stock_data_dict = {result[0]: result[1] for result in results if result[0] is not None}
+
+    performance_log.info(f"Loaded {len(stock_data_dict)} stocks.")
     # 加载数据到Cerebro
     for stock_code, data in stock_data_dict.items():
-        # performance_log.get_logger().debug(f"Loaded {stock_code}")
+        # performance_log.debug(f"Loaded {stock_code}")
         cerebro.adddata(data, name=stock_code)  # 将数据加载到Cerebro中
-    performance_log.get_logger().info(f"adddata done")
+    performance_log.info(f"adddata done")
     # 添加策略
     cerebro.addstrategy(SmallCapStrategy, period_type="week", n_periods=1)
 
@@ -314,7 +309,7 @@ if __name__ == "__main__":
     cerebro.addanalyzer(bt.analyzers.PyFolio, _name="pyfolio")
 
     # 策略执行
-    performance_log.get_logger().info("期初总资金: %.2f" % cerebro.broker.getvalue())
+    performance_log.info("期初总资金: %.2f" % cerebro.broker.getvalue())
     results = cerebro.run(
         maxcpus=None,
         stdstats=False,
@@ -323,7 +318,7 @@ if __name__ == "__main__":
         # replace_cache_data=False,
         # cache_file_path=cache_file,
     )  # 用单核 CPU 做优化, 禁用观察者用以提高执行速度,不做预加载
-    performance_log.get_logger().info("最终资金: %.2f" % cerebro.broker.getvalue())
+    performance_log.info("最终资金: %.2f" % cerebro.broker.getvalue())
     stats = results[0]
 
     # 初始化投资组合统计分析器

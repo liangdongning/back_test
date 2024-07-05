@@ -92,7 +92,7 @@ class SmaStrategy(bt.Strategy):
         """
         if self.params.printlog or do_print:
             dt = self.datas[0].datetime.date(0)
-            performance_log.get_logger().debug("%s, %s" % (dt.isoformat(), txt))
+            performance_log.debug("%s, %s" % (dt.isoformat(), txt))
 
     def notify_order(self, order):
         """
@@ -184,10 +184,10 @@ def main(code="sz000002"):
     # 添加分析器
     cerebro.addanalyzer(bt.analyzers.PyFolio, _name='pyfolio')
 
-    performance_log.get_logger().info("Starting Portfolio Value: %.2f" % cerebro.broker.getvalue())
-    performance_log.get_logger().info("期初总资金: %.2f" % cerebro.broker.getvalue())
+    performance_log.info("Starting Portfolio Value: %.2f" % cerebro.broker.getvalue())
+    performance_log.info("期初总资金: %.2f" % cerebro.broker.getvalue())
     results = cerebro.run(maxcpus=1, stdstats=False)  # 用单核 CPU 做优化, 禁用观察者用以提高执行速度
-    performance_log.get_logger().info("最终资金: %.2f" % cerebro.broker.getvalue())
+    performance_log.info("最终资金: %.2f" % cerebro.broker.getvalue())
     stats = results[0]
 
     # 初始化投资组合统计分析器

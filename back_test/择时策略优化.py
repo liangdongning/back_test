@@ -86,7 +86,7 @@ class SmaStrategy(bt.Strategy):
         """
         if self.params.printlog or do_print:
             dt = self.datas[0].datetime.date(0)
-            performance_log.get_logger().debug("%s, %s" % (dt.isoformat(), txt))
+            performance_log.debug("%s, %s" % (dt.isoformat(), txt))
 
     def notify_order(self, order):
         """
@@ -188,10 +188,10 @@ def main(code="sz000002"):
     )
 
     cerebro.addanalyzer(bt.analyzers.PyFolio, _name="pyfolio")
-    performance_log.get_logger().info("Starting Portfolio Value: %.2f" % cerebro.broker.getvalue())
-    performance_log.get_logger().info("期初总资金: %.2f" % cerebro.broker.getvalue())
+    performance_log.info("Starting Portfolio Value: %.2f" % cerebro.broker.getvalue())
+    performance_log.info("期初总资金: %.2f" % cerebro.broker.getvalue())
     back = cerebro.run(maxcpus=None, stdstats=False)  # 用最大cpu做优化
-    performance_log.get_logger().info("最终资金: %.2f" % cerebro.broker.getvalue())
+    performance_log.info("最终资金: %.2f" % cerebro.broker.getvalue())
     # 构建优化结果
     par_list = [
         [

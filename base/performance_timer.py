@@ -49,7 +49,7 @@ class PerformanceTimer:
             end_time = timeit.default_timer()
             end_cpu_time = process_time()
 
-            # performance_log.get_logger().debug(
+            # performance_log.debug(
             #     "function:%r consume %2.4f sec, cpu %2.4f sec. args %s, extra args %s"
             #     % (
             #         func.__qualname__,
@@ -59,7 +59,7 @@ class PerformanceTimer:
             #         kwargs,
             #     ),
             # )
-            performance_log.get_logger().debug(
+            performance_log.debug(
                 "function:%r consume %2.4f sec, cpu %2.4f sec."
                 % (
                     func.__qualname__,

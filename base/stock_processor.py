@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
+import numpy as np
 from decimal import Decimal, ROUND_HALF_UP
 from base.log import performance_log
+import statsmodels.api as sm
 
 
 class StockDataProcessor:
@@ -136,6 +138,71 @@ class StockDataProcessor:
 
         return df
 
+    @staticmethod
+    def winsorize_series(series, n=3):
+        """
+        对给定的Series应用Winsorizing处理，即限制其极端值。
+
+        参数:
+        series: pandas Series，需要进行Winsorizing处理的数据。
+        n: float，可选参数，默认为3。指定用于计算上下界限的标准差倍数。
+
+        返回:
+        pandas Series，经过Winsorizing处理后的数据。
+
+        Winsorizing处理通过将超出指定标准差倍数的数据限制在这些界限内，来减少数据集中极端值的影响。
+        """
+        # 计算Series的平均值
+        mean = series.mean()
+        # 计算Series的标准差
+        std = series.std()
+        # 计算下界，即平均值减去标准差乘以num_std
+        lower_bound = mean - n * std
+        # 计算上界，即平均值加上标准差乘以num_std
+        upper_bound = mean + n * std
+        # 使用clip函数限制Series的值在上下界之间
+        return series.clip(lower_bound, upper_bound)
+
+    # MAD
+    @staticmethod
+    def filter_extreme_by_mad(series, n=3):
+        # 计算中位数 𝑥_𝑚𝑒𝑑𝑖𝑎𝑛
+        median = series.median()
+        # 计算绝对偏差值的中位数 MAD
+        median_new = abs(series - median).median()
+        # 计算上下限的值
+        max_value = median + n * median_new
+        min_value = median - n * median_new
+        return np.clip(series, min_value, max_value)
+
+    @staticmethod
+    def standardize_series(series):
+        """
+        标准化序列。
+        z-score
+        将给定的序列转换为标准正态分布。这意味着序列中的每个元素都会被转换，
+        使其具有零的均值和单位的标准差。
+
+        参数:
+        series: pandas.Series - 需要标准化的序列。
+
+        返回值:
+        pandas.Series - 标准化后的序列。
+        """
+        # 计算序列的均值
+        mean = series.mean()
+        # 计算序列的标准差
+        std = series.std()
+        # 返回标准化后的序列
+        return (series - mean) / std
+
+    @staticmethod
+    def neutralize(factor_data, dummy_variable):
+        model = sm.OLS(factor_data, dummy_variable).fit()  # 将Pandas Series或DataFrame转换为NumPy数组
+        # performance_log.debug(model.summary())
+        neutralized_factor = factor_data - model.predict(dummy_variable)
+        return neutralized_factor
+
 
 class SingleStockDataProcessor(StockDataProcessor):
     def __init__(self, stock_code, file_path, start_date=None, end_date=None):
@@ -160,12 +227,12 @@ class SingleStockDataProcessor(StockDataProcessor):
             if self.end_date is not None:
                 df = df[df['交易日期'] <= pd.to_datetime(self.end_date)]
 
-            # performance_log.get_logger().debug(
+            # performance_log.debug(
             #     f"Data read successfully for stock code {self.stock_code}"
             # )
             return df
         except Exception as e:
-            performance_log.get_logger().error(
+            performance_log.error(
                 f"Error reading data for stock code {self.stock_code}: {e}"
             )
             raise
@@ -205,7 +272,7 @@ class SingleStockDataProcessor(StockDataProcessor):
         if index_data is not None:
             df = self.merge_with_index_data(df, index_data)
         df = self.format_data(df)
-        # performance_log.get_logger().debug(
+        # performance_log.debug(
         #     f"Data read successfully for stock code {self.stock_code} "
         # )
         return df
