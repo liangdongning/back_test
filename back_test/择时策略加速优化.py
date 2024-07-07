@@ -1,10 +1,21 @@
 # -*- coding: utf-8 -*-
 import backtrader as bt
+import optuna
+from functools import partial
 from datetime import datetime
 from base.stock_processor import SingleStockDataProcessor
-import pandas as pd
-from base.log import performance_log
 from base.config import PathConfig
+import quantstats
+import webbrowser
+import os
+import matplotlib.pyplot as plt
+from base.log import performance_log
+
+# 设置字体和环境变量
+os.environ["LANG"] = "zh_CN.UTF-8"
+os.environ["LC_ALL"] = "zh_CN.UTF-8"
+plt.rcParams["font.sans-serif"] = ["SimHei"]
+plt.rcParams["axes.unicode_minus"] = False
 
 
 class CustomData(bt.feeds.PandasData):
@@ -13,15 +24,11 @@ class CustomData(bt.feeds.PandasData):
 
 
 class SmaStrategy(bt.Strategy):
-    """
-    主策略程序
-    """
-
     params = (
         ("period_short", 10),
         ("period_long", 90),
         ("printlog", False),
-    )  # 全局设定交易策略的参数, period MA 均值的长度
+    )
 
     def __init__(self):
         """
@@ -40,12 +47,10 @@ class SmaStrategy(bt.Strategy):
         self.sma_long = bt.indicators.SMA(
             self.data_close, period=self.params.period_long
         )
+        # help(bt.indicators.SMA)
+        # print('sma1', self.sma.get(ago=0, size=3))
 
-        print(
-            "period_short:%s, period_long:%s"
-            % (self.params.period_short, self.params.period_long)
-        )
-
+        # self.sma = bt.talib.SMA(self.data_close, timeperiod=self.params.period)
         self.buy_sig = self.sma_short > self.sma_long  # 短线上穿长线
         self.sell_sig = self.sma_short < self.sma_long  # 长线上穿短线
 
@@ -150,68 +155,71 @@ class SmaStrategy(bt.Strategy):
         )
 
 
+def objective(trial, code, stock_df, all_returns):
+    cerebro = bt.Cerebro()
+    # 定义参数搜索空间
+    period_short = trial.suggest_int("period_short", 5, 20)
+    period_long = trial.suggest_int("period_long", 20, 100)
+
+    cerebro.addstrategy(SmaStrategy, period_short=period_short, period_long=period_long)
+
+    # 加载数据
+    start_date = datetime(2008, 1, 1)
+    end_date = datetime(2018, 12, 31)
+    stock_data = CustomData(dataname=stock_df, fromdate=start_date, todate=end_date)
+    cerebro.adddata(stock_data, name=code)
+
+    # 设置初始资金、佣金和滑点
+    cerebro.broker.setcash(1000000.0)
+    cerebro.broker.setcommission(commission=0.0003)
+    cerebro.broker.set_slippage_perc(perc=0.0001)
+
+    # 添加分析器
+    cerebro.addanalyzer(bt.analyzers.PyFolio, _name="pyfolio")
+
+    cerebro.run(stdstats=False)
+    # 初始化投资组合统计分析器
+    portfolio_stats = cerebro.runstrats[0][0].analyzers.getbyname("pyfolio")
+    returns, positions, transactions, gross_lev = portfolio_stats.get_pf_items()
+    returns.index = returns.index.tz_convert(None)
+    # 保存到数组当中
+    all_returns.append(returns)
+
+    final_value = cerebro.broker.getvalue()
+    performance_log.info(f"period_short: {period_short} period_long: {period_long}")
+    performance_log.info(f"Final value: {final_value}")
+    return final_value
+
+
 def main(code="sz000002"):
-    cerebro = bt.Cerebro()  # 创建主控制器
-    cerebro.optstrategy(
-        SmaStrategy, period_short=range(5, 20, 1), period_long=range(20, 100, 1)
-    )  # 导入策略参数寻优
+    output_base = os.path.splitext(os.path.basename(__file__))[0]
+    all_returns = []
+
     # 读取股票数据
     data_path = "E:/邢不行量化课程学习/代码/xbx_stock_2019-pro/xbx_stock_2019/data/择时策略-回测/"
     read_file_path = data_path + "%s.csv"
-
     processor = SingleStockDataProcessor(code, read_file_path)
     stock_df = processor.process_stock_data()
-
+    #
     # 加载数据
-    start_date = datetime(2008, 1, 1)  # 回测开始时间
-    end_date = datetime(2018, 12, 31)  # 回测结束时间
-    data = CustomData(
-        dataname=stock_df, fromdate=start_date, todate=end_date
-    )  # 规范化数据格式
-    # data = bt.feeds.PandasData(
-    #     dataname=stock_df, fromdate=start_date, todate=end_date
-    # )  # 规范化数据格式
-    cerebro.adddata(data, name=code)  # 将数据加载至回测系统
-    # 初始资金 100,000,00
-    cerebro.broker.setcash(1000000.0)
-    # 佣金，双边各 0.0003
-    cerebro.broker.setcommission(commission=0.0003)
-    # 滑点：双边各 0.0001
-    cerebro.broker.set_slippage_perc(perc=0.0001)
+    # start_date = datetime(2008, 1, 1)
+    # end_date = datetime(2018, 12, 31)
+    # stock_data = CustomData(dataname=stock_df, fromdate=start_date, todate=end_date)
 
-    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="SharpeRatio")  # 夏普比率
-    cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")  # 回撤
-    cerebro.addanalyzer(bt.analyzers.Returns, _name="returns")  # 收益率
+    # 创建Optuna研究对象
+    study = optuna.create_study(direction="maximize")
+    # 运行优化
+    partial_objective = partial(objective, stock_df=stock_df, code=code, all_returns = all_returns)
+    study.optimize(partial_objective, n_trials=150, n_jobs=-1)
 
-    cerebro.addanalyzer(
-        bt.analyzers.TimeReturn, timeframe=bt.TimeFrame.Years, _name="timereturns"
-    )
+    # 使用最优参数对应的回报序列生成报告
+    best_trial_index = study.best_trial.number
+    best_returns = all_returns[best_trial_index]
 
-    cerebro.addanalyzer(bt.analyzers.PyFolio, _name="pyfolio")
-    performance_log.info("Starting Portfolio Value: %.2f" % cerebro.broker.getvalue())
-    performance_log.info("期初总资金: %.2f" % cerebro.broker.getvalue())
-    back = cerebro.run(maxcpus=None, stdstats=False)  # 用最大cpu做优化
-    performance_log.info("最终资金: %.2f" % cerebro.broker.getvalue())
-    # 构建优化结果
-    par_list = [
-        [
-            x[0].params.period_short,
-            x[0].params.period_long,
-            x[0].analyzers.returns.get_analysis()["rnorm"],
-            x[0].analyzers.drawdown.get_analysis()["max"]["drawdown"],
-            x[0].analyzers.SharpeRatio.get_analysis()["sharperatio"],
-        ]
-        for x in back
-    ]
-
-    # 结果转成dataframe
-    par_df = pd.DataFrame(
-        par_list, columns=["period_short", "period_long", "return", "dd", "sharpe"]
-    )
-
-    print(par_df.head())
-    output_file = PathConfig.data_optimized_folder + "择时策略优化.csv"
-    par_df.to_csv(output_file)
+    # 生成量化统计报告
+    output_file = os.path.join(PathConfig.data_folder, f"{output_base}_optimized.html")
+    quantstats.reports.html(best_returns, output=output_file, title="Stock Sentiment")
+    webbrowser.open_new_tab(output_file)
 
 
 if __name__ == "__main__":

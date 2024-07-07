@@ -8,6 +8,7 @@ from base.log import performance_log
 from multiprocessing import Pool, cpu_count
 from base.config import PathConfig
 import alphalens
+import matplotlib.pyplot as plt  # 由于 Backtrader 的问题，此处要求 pip install matplotlib==3.2.2
 
 
 class SingleFactorStockDataProcessor(SingleStockDataProcessor):
@@ -190,6 +191,7 @@ if __name__ == "__main__":
     ## 因子数据
     factor_df = merged_df[["date", "stock_code", "size_factor_neutralize"]].copy()
     factor_df = factor_df.set_index(["date", "stock_code"])  # 将时间，股票代码作为index
+    factor_df = factor_df * (-1)  # 因子值乘以-1 符合逻辑,因为市值因子越小越有用
     performance_log.info(factor_df.head(5))
     ## 行业数据
     group_df = merged_df[["date", "stock_code", "industry"]].copy()
